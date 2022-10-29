@@ -8,6 +8,13 @@ then
 	set -x
 fi
 
+ROOT="${BASH_SOURCE[0]}"
+if([ -h "${ROOT}" ]) then
+  while([ -h "${ROOT}" ]) do ROOT=`readlink "${ROOT}"`; done
+fi
+ROOT=$(cd `dirname "${ROOT}"` && pwd)
+cd "${ROOT}"
+
 habash_help()
 {
 	cat <<-HELP
@@ -76,11 +83,13 @@ habash_content()
 habash_ls()
 {
     if [ "$1" = "dailys" ]; then
-        hcurl GET "/tasks/user?type=dailys" | grep -Po '(?<="text":").*?(?=")'
+        hcurl GET "/tasks/user?type=dailys" | lua habash.lua dailys
     elif [ "$1" = "habits" ]; then
         hcurl GET "/tasks/user?type=habits" | grep -Po '(?<="text":").*?(?=")'
     elif [ "$1" = "todos" ]; then
         hcurl GET "/tasks/user?type=todos" | grep -Po '(?<="text":").*?(?=")'
+    elif [ "$1" = "tags" ]; then
+        hcurl GET "/tags" | lua habash.lua tags
     else
         hcurl GET /tasks/user | grep -Po '(?<="text":").*?(?=")'
     fi
@@ -107,7 +116,13 @@ habash_deletetask()
 
 habash_up()
 {
-    hcurl POST /tasks/$(habash_getidoftask $*)/score/up
+  re='^[0-9]+$'
+  if ! [[ $1 =~ $re ]] ; then
+    ID="$(habash_getidoftask $*)"
+  else
+    ID="$(lua habash.lua get_task_id_by_pos $1)"
+  fi
+  hcurl POST /tasks/$ID/score/up
 }
 
 habash_down()
@@ -188,6 +203,12 @@ habash_main()
 			;;
 		down)
 			habash_down $@
+			;;
+		ignore)
+			lua habash.lua ignore $@
+			;;
+		postpone)
+			lua habash.lua postpone $@
 			;;
 		help|-h|--help)
 			habash_help
