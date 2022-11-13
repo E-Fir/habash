@@ -6,11 +6,28 @@ local reset_color =   '\x1b[0m'
 local gray =          '\x1b[30;90m'
 local light_red =     '\x1b[30;91m'
 local light_blue =    '\x1b[30;94m'
+local light_yellow =  '\x1b[30;93m'
 
 local json = require 'json'
 
 local input
 local data
+
+local is_full = false
+--if true then
+--  declare('socket') declare('loadstring')
+--  declare('getfenv') declare('setfenv')
+--  local m = require('mobdebug')
+--  m.start('192.168.3.93')
+--end
+local args = { }
+for i = 1, #arg do
+  if arg[i] == '--full' then
+    is_full = true
+  else
+    args[#args + 1] = arg[i]
+  end
+end
 
 local mode = arg[1]
 local TAGS_FILENAME = 'tags.lua'
@@ -18,6 +35,11 @@ local FINAL_ITEMS_FILENAME = 'last_items.lua'
 local IGNORE_FILENAME = 'ignore.lua'
 
 local today = os.date('%Y-%m-%d')
+
+if mode == 'postpone' then
+  print('NIY')
+  os.exit(1)
+end
 
 if mode == 'tags' then
   input = io.read('*a')
@@ -41,9 +63,13 @@ local load_items = function()
 end
 
 if mode == 'get_task_id_by_pos' then
-  local pos = tonumber(arg[2])
   local items = load_items()
-  print(items[pos].id)
+  local res = { }
+  for i = 2, #arg do
+    local pos = tonumber(arg[i])
+    res[#res + 1] = items[pos].id
+  end
+  print(table.concat(res, ' '))
   return
 end
 
@@ -124,12 +150,13 @@ end
 
 for i = 1, #items do
   local item = items[i]
-  --if
-  --  item.text:find('Feed children')
-  --  --or item.text:find('Order food')
-  --then
-  --  print(tpretty(item))
-  --end
+  if
+    item.text:find('dust')
+    --or item.text:find('Order food')
+  then
+    print(tpretty(item))
+  end
+
   local next_due_1 = to_date(item.nextDue[1], true)
   local next_due_2 = to_date(item.nextDue[2], true)
   --if item.text:find('Wool2') then
@@ -176,8 +203,6 @@ for i = 1, #items do
   table.sort(tag_names)
   tag_names = table.concat(tag_names, ', ')
   tag_names = tag_names .. (' '):rep(25 - #tag_names)
-  tag_names = tag_names:gsub('pay', light_red .. 'pay' .. reset_color)
-  tag_names = tag_names:gsub('evening', light_blue .. 'evening' .. reset_color)
   final_items[#final_items + 1] =
   {
     n = #final_items + 1;
@@ -185,6 +210,7 @@ for i = 1, #items do
     tag_names = tag_names;
     text = item.text;
     id = item.id;
+    checklist = item.checklist;
   }
 
 end
@@ -208,7 +234,24 @@ for i = 1, #final_items do
     prefix = ''
     suffix = ''
   end
-  print(prefix .. item.due, item.tag_names, '[' .. i .. '] ' .. item.text .. suffix)
+
+  local tag_names = item.tag_names
+  local color_tag = function(name, color)
+    tag_names = tag_names:gsub(name, color .. name .. reset_color)
+  end
+  color_tag('pay', light_red)
+  color_tag('evening', light_blue)
+  color_tag('eat', light_yellow)
+  color_tag('outdoor', gray)
+
+  print(prefix .. item.due, tag_names, '[' .. i .. '] ' .. item.text .. suffix)
+
+  if is_full and item.checklist then
+    for j = 1, #item.checklist do
+      local checklist_item = item.checklist[j]
+      print('', '', tag_names, '    ' .. (checklist_item.completed and '[x]' or '[ ]'), checklist_item.text)
+    end
+  end
 end
 
 local f = io.open(FINAL_ITEMS_FILENAME, 'w')

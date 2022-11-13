@@ -83,13 +83,13 @@ habash_content()
 habash_ls()
 {
     if [ "$1" = "dailys" ]; then
-        hcurl GET "/tasks/user?type=dailys" | lua habash.lua dailys
+        hcurl GET "/tasks/user?type=dailys" | lua habash.lua $@
     elif [ "$1" = "habits" ]; then
         hcurl GET "/tasks/user?type=habits" | grep -Po '(?<="text":").*?(?=")'
     elif [ "$1" = "todos" ]; then
         hcurl GET "/tasks/user?type=todos" | grep -Po '(?<="text":").*?(?=")'
     elif [ "$1" = "tags" ]; then
-        hcurl GET "/tags" | lua habash.lua tags
+        hcurl GET "/tags" | lua habash.lua $@
     else
         hcurl GET /tasks/user | grep -Po '(?<="text":").*?(?=")'
     fi
@@ -119,10 +119,14 @@ habash_up()
   re='^[0-9]+$'
   if ! [[ $1 =~ $re ]] ; then
     ID="$(habash_getidoftask $*)"
+    hcurl POST /tasks/$ID/score/up
   else
-    ID="$(lua habash.lua get_task_id_by_pos $1)"
+    IDS="$(lua habash.lua get_task_id_by_pos $@)"
+    for i in ${IDS}
+    do
+      hcurl POST /tasks/$i/score/up | cut -c1-90
+    done
   fi
-  hcurl POST /tasks/$ID/score/up
 }
 
 habash_down()
